@@ -1,0 +1,99 @@
+---
+- name: update packages
+  become: yes
+  become_method: sudo
+  apt:
+    name: "*"
+    autoclean: yes
+    update_cache: yes
+    state: latest
+
+- name: install packages
+  become: yes
+  become_method: sudo
+  apt:
+    name: '{{ item }}'
+    state: present
+  with_items:
+    - python-pip
+    - python-dev
+    - python-setuptools
+    - python-virtualenv
+    - git
+    - libyaml-dev
+    - build-essential
+    - subversion
+    - libjpeg62-turbo-dev
+    - imagemagick
+    - libav-tools
+    - libv4l-dev
+    - cmake
+    - apache2
+    - libapache2-mod-proxy-html
+
+- name: clone octoprint sources
+  git:
+    repo: https://github.com/foosel/OctoPrint.git
+    dest: /home/pi/OctoPrint
+
+- name: setup virtualenv
+  command: "virtualenv venv"
+  args:
+    chdir: /home/pi/OctoPrint
+    creates: /home/pi/OctoPrint/venv
+
+- name: upgrade pip
+  command: "/home/pi/OctoPrint/venv/bin/pip install pip --upgrade"
+
+- name: install OctoPrint
+  command: "/home/pi/OctoPrint/venv/bin/python setup.py install"
+  args:
+    chdir: /home/pi/OctoPrint
+    creates: /home/pi/OctoPrint/venv/bin/octoprint
+
+- name: clone mjpg-streamer sources
+  git:
+    repo: https://github.com/jacksonliam/mjpg-streamer.git
+    dest: /home/pi/mjpg-streamer
+
+- name: build mjpg-streamer
+  command: "LD_LIBRARY_PATH=. make"
+  args:
+    chdir: /home/pi/mjpg-streamer/mjpg-streamer-experimental
+    creates: /home/pi/mjpg-streamer/mjpg-streamer-experimental/mjpg_streamer
+
+- name: make .octoprint and scripts dirs
+  file:
+    path: '{{ item }}'
+    state: directory
+  with_items:
+    - /home/pi/.octoprint
+    - /home/pi/scripts
+
+- name: copy scripts
+  copy:
+    src: 'files/{{ item }}'
+    dest: /home/pi/scripts/
+    owner: pi
+    group: pi
+    mode: 0755
+  with_items:
+    - webcam
+    - webcamDaemon
+
+- name: add pi to the dialout and tty groups
+  user:
+    name: pi
+    groups: "dialout tty"
+    append: yes
+
+- name: configure apache
+  become: yes
+  become_method: sudo
+  copy:
+    src: files/octoprint.conf
+    dest: /etc/apache2/sites-available/octoprint.conf
+    owner: root
+    group: root
+    mode: 0644
+

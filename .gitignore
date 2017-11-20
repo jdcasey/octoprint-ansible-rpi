@@ -1,7 +1,2 @@
 hosts*
-.vagrant/
-.vagrant
-
-*.rpm
 *.retry
-atlassian-confluence*

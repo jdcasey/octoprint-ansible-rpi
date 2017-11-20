@@ -1,0 +1,5 @@
+---
+- hosts: print-servers
+  remote_user: pi
+  roles:
+    - octoprint

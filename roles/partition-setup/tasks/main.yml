@@ -1,0 +1,39 @@
+---
+- name: get the local username
+  local_action: command whoami
+  register: localuser
+
+- name: replace files on boot partition
+  copy:
+  	src: 'files/{{ item }}'
+  	dest: '/run/media/{{ localuser }}/boot/{{ item }}'
+  with_items:
+    - cmdline.txt
+    - wpa_supplicant.conf
+    - ssh
+    - config.txt
+
+- name: Set ssh directory mode
+  file:
+    path: '/run/media/{{ localuser }}/{{ usb_partition }}/home/pi/.ssh'
+    mode: 0700
+    state: directory
+
+- name: replace fstab on USB partition
+  copy:
+    src: 'files/{{ item.srcpath }}'
+    dest: '/run/media/{{ localuser }}/{{ usb_partition }}/{{ item.destpath }}'
+    owner: "{{ item.owner | default('root') }}"
+    group: "{{ item.group | default('root') }}"
+    mode: "{{ item.mode | default('0644') }}"
+  with_items:
+    - srcpath: fstab
+      destpath: etc/fstab
+    - srcpath: authorized_keys
+      destpath: home/pi/.ssh/authorized_keys
+      owner: 1000
+      group: 1000
+      mode: 0600
+
+
+
