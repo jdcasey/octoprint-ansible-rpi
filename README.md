@@ -16,6 +16,16 @@ For the uninitiated: you'll probably want to select the address that uses the `1
 
 Once you know your Pi's IP address, make a copy of the `hosts.template` file and replace `aaa.bbb.ccc.ddd` with your IP address, and you'll be ready to go.
 
+## Provisioning the Raspbian SD Card
+
+To get started, you'll need to download Raspbian from [the Raspberry Pi Foundation download site](https://www.raspberrypi.org/downloads/raspbian/). Once you have the `.img.zip` file, the first step is to unzip it.
+
+### Setup Your Variables
+
+Before provisioning, you'll need to set some variables to tell Ansible the target for copying the .img file, along with some other details.
+
+**TODO**
+
 ## Installing On a Running RPi
 
 Once you have a Pi running Raspbian Stretch with SSH enabled, you can install OctoPrint (+webcam support) using the `install-octoprint.yml` playbook:

@@ -1,0 +1,12 @@
+[Unit]
+Description=Webcam
+
+[Service]
+Restart=always
+RestartSec=10
+ExecStart=/home/pi/scripts/webcamDaemon
+User=pi
+Group=pi
+
+[Install]
+WantedBy=multi-user.target

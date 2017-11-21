@@ -1,7 +1,6 @@
 ---
 - name: update packages
   become: yes
-  become_method: sudo
   apt:
     name: "*"
     autoclean: yes
@@ -10,7 +9,6 @@
 
 - name: install packages
   become: yes
-  become_method: sudo
   apt:
     name: '{{ item }}'
     state: present
@@ -29,7 +27,8 @@
     - libv4l-dev
     - cmake
     - apache2
-    - libapache2-mod-proxy-html
+    - avahi-daemon
+    - libavahi-compat-libdnssd1
 
 - name: clone octoprint sources
   git:
@@ -44,6 +43,18 @@
 
 - name: upgrade pip
   command: "/home/pi/OctoPrint/venv/bin/pip install pip --upgrade"
+  register: pip_upgrade
+  changed_when: "False == (pip_upgrade.stdout | regex_search('already up-to-date'))"
+
+- name: find pybonjour
+  stat:
+    path: /home/pi/OctoPrint/venv/lib/python2.7/site-packages/pybonjour.py
+  register: pybonjour
+  changed_when: False
+
+- name: install pybonjour
+  command: "/home/pi/OctoPrint/venv/bin/pip install https://goo.gl/SxQZ06"
+  when: 'pybonjour.stat.exists == False'
 
 - name: install OctoPrint
   command: "/home/pi/OctoPrint/venv/bin/python setup.py install"
@@ -57,7 +68,9 @@
     dest: /home/pi/mjpg-streamer
 
 - name: build mjpg-streamer
-  command: "LD_LIBRARY_PATH=. make"
+  shell: |
+    LD_LIBRARY_PATH=.
+    exec make
   args:
     chdir: /home/pi/mjpg-streamer/mjpg-streamer-experimental
     creates: /home/pi/mjpg-streamer/mjpg-streamer-experimental/mjpg_streamer
@@ -81,19 +94,74 @@
     - webcam
     - webcamDaemon
 
+- name: copy OctoPrint systemd script
+  become: yes
+  copy:
+    src: files/octoprint.service
+    dest: /etc/systemd/system/octoprint.service
+    owner: root
+    group: root
+    mode: 0755
+  notify:
+    - systemd reload
+    - systemd restart octoprint
+
+- name: copy Webcam systemd script
+  become: yes
+  copy:
+    src: files/webcam.service
+    dest: /etc/systemd/system/webcam.service
+    owner: root
+    group: root
+    mode: 0755
+  notify:
+    - systemd reload
+    - systemd restart webcam
+
 - name: add pi to the dialout and tty groups
+  become: yes
   user:
     name: pi
-    groups: "dialout tty"
+    groups: "{{ item }}"
     append: yes
+  with_items:
+    - dialout
+    - tty
+
+- name: is mod_proxy configured?
+  stat:
+    path: /etc/apache2/mods-enabled/proxy.load
+  register: mod_proxy
+  changed_when: False
+
+- name: configure mod_proxy
+  become: yes
+  command: "a2enmod proxy"
+  when: "mod_proxy.stat.exists == False"
+  notify: 
+    - systemd restart apache
+
+- name: is mod_proxy_http configured?
+  stat:
+    path: /etc/apache2/mods-enabled/proxy_http.load
+  register: mod_proxy_http
+  changed_when: False
+
+- name: configure mod_proxy_http
+  become: yes
+  command: "a2enmod proxy_http"
+  when: "mod_proxy_http.stat.exists == False"
+  notify: 
+    - systemd restart apache
 
 - name: configure apache
   become: yes
-  become_method: sudo
   copy:
     src: files/octoprint.conf
     dest: /etc/apache2/sites-available/octoprint.conf
     owner: root
     group: root
     mode: 0644
+  notify:
+    - systemd restart apache
 
